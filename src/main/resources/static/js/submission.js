@@ -1,7 +1,8 @@
 // Direct to dashboard
 function backToDashboard() {
-    window.location.href = '/dashboard';
+    window.location.href = "/dashboard";
 }
+
 // Handle file input trigger
 function triggerFileInput() {
     document.getElementById("fileInput").click();
@@ -12,10 +13,12 @@ function handleFileUpload(event) {
     const fileInput = document.getElementById("fileInput");
     const fileList = document.getElementById("fileList");
     fileList.innerHTML = ""; // Clear the existing list
-    const allowedExtensions = ['pdf', 'doc', 'docx'];
 
-    Array.from(event.target.files).forEach(file => {
-        const fileExtension = file.name.split('.').pop().toLowerCase();
+    const allowedExtensions = ["pdf", "doc", "docx"];
+
+    Array.from(event.target.files).forEach((file) => {
+        const fileExtension = file.name.split(".").pop().toLowerCase();
+
         if (!allowedExtensions.includes(fileExtension)) {
             alert(`File type not allowed: ${file.name}`);
             return;
@@ -31,18 +34,19 @@ function handleFileUpload(event) {
         const removeButton = document.createElement("button");
         removeButton.classList.add("btn", "btn-secondary");
         removeButton.textContent = "Remove";
-        removeButton.onclick = () => {
-            // Remove the file from the UI
-            fileItem.remove();
-            // Remove the file from the input list
+
+        removeButton.addEventListener("click", () => {
+            fileItem.remove(); // Remove from UI
+
+            // Remove from file input list
             const dataTransfer = new DataTransfer();
-            Array.from(fileInput.files).forEach(f => {
+            Array.from(fileInput.files).forEach((f) => {
                 if (f !== file) {
                     dataTransfer.items.add(f);
                 }
             });
             fileInput.files = dataTransfer.files;
-        };
+        });
 
         fileItem.appendChild(fileInfo);
         fileItem.appendChild(removeButton);
@@ -52,8 +56,8 @@ function handleFileUpload(event) {
 
 // Handle file submission
 function submitFiles() {
-    const submitButton = document.getElementById('submit_btn');
-    const loading = document.getElementById('loader');
+    const submitButton = document.getElementById("submit_btn");
+    const loading = document.getElementById("loader");
 
     const fileInput = document.getElementById("fileInput");
     const files = fileInput.files;
@@ -64,8 +68,8 @@ function submitFiles() {
     }
 
     // Disable the button to prevent further submissions
-    submitButton.style.display = 'none';
-    loading.style.display = 'block';
+    submitButton.style.display = "none";
+    loading.style.display = "block";
 
     const formData = new FormData();
     formData.append("file", files[0]);
@@ -74,26 +78,26 @@ function submitFiles() {
         method: "POST",
         body: formData
     })
-            .then((response) => {
-                loading.style.display = 'none';
-                if (!response.ok) {
-                    return response.json().then((data) => {
-                        throw new Error(data.error || "Failed to upload file.");
-                    });
-                }
-                return response.json();
-            })
-            .then((data) => {
-                if (data.message) {
-                    alert(`Success: ${data.message}`);
-                    window.location.href = '/dashboard';
-                } else {
-                    alert("Unknown server response.");
-                }
-            })
-            .catch((error) => {
-                loading.style.display = 'none';
-                submitButton.style.display = 'inline';
-                alert(`Error: ${error.message}`);
-            });
+        .then((response) => {
+            if (!response.ok) {
+                return response.json().then((data) => {
+                    throw new Error(data.error || "Failed to upload file.");
+                });
+            }
+            return response.json();
+        })
+        .then((data) => {
+            loading.style.display = "none";
+            if (data.message) {
+                alert(`Success: ${data.message}`);
+                window.location.href = "/dashboard";
+            } else {
+                alert("Unknown server response.");
+            }
+        })
+        .catch((error) => {
+            loading.style.display = "none";
+            submitButton.style.display = "inline";
+            alert(`Error: ${error.message}`);
+        });
 }

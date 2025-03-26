@@ -39,6 +39,16 @@ public class CohereGradingService {
         if (apiKey == null || apiModel == null || apiKey.isEmpty() || apiModel.isEmpty()) {
             throw new IllegalArgumentException("API Key and Model cannot be null or empty");
         }
+
+        // Initialize the Cohere client
+        this.cohere = Cohere.builder()
+                .token(apiKey)
+                .clientName("grading-system")
+                .build();
+    }
+
+    // Setter method for tests
+    public void setApiKeyForTest(String apiKey) {
         this.cohere = Cohere.builder()
                 .token(apiKey)
                 .clientName("grading-system")
@@ -78,10 +88,15 @@ public class CohereGradingService {
             logger.debug("Answer: {}", answer);
 
             String prompt = """
-                        Evaluate the following answer to the question on a scale of 1 to 10. Only respond with a score (e.g., 3/10).
-                        Question: %s
-                        Answer: %s
-                        """.formatted(question, answer);
+                    Evaluate the following answer to the question on a scale of 1 to 10 based on the following criteria:
+                    1. Correctness: Is the answer factually accurate?
+                    2. Completeness: Does the answer fully address the question?
+                    3. Clarity: Is the answer clear and easy to understand?
+                    Only respond with a score (e.g., 3/10).
+                    Question: %s
+                    Answer: %s
+                    """
+                    .formatted(question, answer);
 
             try {
                 String evaluation = callAIAPI(prompt); // Cohere API used here
@@ -105,13 +120,13 @@ public class CohereGradingService {
             logger.debug("Student Answer: {}", studentAnswer);
             logger.debug("Rubric Answer: {}", rubricAnswer);
             String prompt = """
-                On a scale of 1 to 10, how well does the student's answer align with the teacher's answer in terms of correctness and completeness? 
-                Focus on the core meaning of the answers, disregarding minor differences in wording or phrasing. Only respond with a score (e.g. 3/10).
-                Question: %s
-                Rubric's Answer: %s
-                Student's Answer: %s
-                """.formatted(question, rubricAnswer, studentAnswer);
-
+                    On a scale of 1 to 10, how well does the student's answer align with the teacher's answer in terms of correctness and completeness?
+                    Focus on the core meaning of the answers, disregarding minor differences in wording or phrasing. Only respond with a score (e.g. 3/10).
+                    Question: %s
+                    Rubric's Answer: %s
+                    Student's Answer: %s
+                    """
+                    .formatted(question, rubricAnswer, studentAnswer);
 
             try {
                 String evaluation = callAIAPI(prompt); // Cohere API used here
@@ -126,31 +141,31 @@ public class CohereGradingService {
 
     public String callAIAPI(String prompt) {
         try {
-            ChatResponse response = cohere.v2()
-                    .chat(
-                            V2ChatRequest.builder()
-                                    .model(apiModel)
-                                    .messages(
-                                            List.of(
-                                                    ChatMessageV2.user(
-                                                            UserMessage.builder()
-                                                                    .content(UserMessageContent
-                                                                            .of(prompt))
-                                                                    .build())))
-                                    .build());
+            V2ChatRequest request = V2ChatRequest.builder()
+                    .model(apiModel)
+                    .messages(
+                            List.of(
+                                    ChatMessageV2.user(
+                                            UserMessage.builder()
+                                                    .content(UserMessageContent.of(prompt))
+                                                    .build())))
+                    .build();
 
-            String responseBody = "" + response;
-            logger.debug("Response Body: " + responseBody);
-            String evaluation = extractEvaluation(responseBody);
-            logger.debug("Extracted Evaluation: " + evaluation);
+            logger.debug("Request Payload: {}", request); // Log request
+
+            ChatResponse response = cohere.v2().chat(request);
+
+            logger.debug("Response Body: {}", response);
+            String evaluation = extractEvaluation(response.toString());
+            logger.debug("Extracted Evaluation: {}", evaluation);
             return evaluation;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error while calling Cohere API", e);
             return "Error: Unable to generate response.";
         }
     }
 
-    //  Add scores together
+    // Add scores together
     public Integer calculateAggregateScore(Map<String, String> evaluationResults) {
         logger.debug("Hello aggregator");
         logger.debug("Evaluation Map: " + evaluationResults);
@@ -161,26 +176,27 @@ public class CohereGradingService {
         // Loop through the evaluation results
         for (String evaluation : evaluationResults.values()) {
             int[] scores = extractScores(evaluation); // Extract both score and max score
-            totalScore += scores[0];   // Add student score
+            totalScore += scores[0]; // Add student score
             totalMaxScore += scores[1]; // Add max score
         }
 
         if (totalMaxScore == 0) {
             logger.error("Total max score is zero. Unable to calculate aggregate score.");
-            throw new IllegalStateException("Total max score cannot be zero.\nEnsure Submission alligns with format guidelines");
+            throw new IllegalStateException(
+                    "Total max score cannot be zero.\nEnsure Submission alligns with format guidelines");
         }
         logger.debug("Total Score: {}, Total Max Score: {}", totalScore, totalMaxScore);
 
-        //calculate final mark
+        // calculate final mark
         double aggregateScore = (double) totalScore / totalMaxScore;
         Integer percentage = (int) (aggregateScore * 100);
         return percentage;
     }
 
-    //  Extract both student score and max score from each question's evaluation
+    // Extract both student score and max score from each question's evaluation
     public int[] extractScores(String evaluation) {
-    // Extract the scores in the format "10/10"
-    String regEx = "(\\d+)/(\\d+)";
+        // Extract the scores in the format "10/10"
+        String regEx = "(\\d+)/(\\d+)";
         Pattern pattern = Pattern.compile(regEx);
         Matcher matcher = pattern.matcher(evaluation);
 
@@ -188,10 +204,10 @@ public class CohereGradingService {
             int studentScore = Integer.parseInt(matcher.group(1));
             int maxScore = Integer.parseInt(matcher.group(2));
             logger.debug("Extracted Evaluation Results: " + studentScore + "/" + maxScore);
-            return new int[]{studentScore, maxScore};
+            return new int[] { studentScore, maxScore };
         }
         logger.warn("No scores found in evaluation: {}", evaluation);
-        return new int[]{0, 10}; // Default to 0/10 if no score is found
+        return new int[] { 0, 10 }; // Default to 0/10 if no score is found
     }
 
     // Extract text

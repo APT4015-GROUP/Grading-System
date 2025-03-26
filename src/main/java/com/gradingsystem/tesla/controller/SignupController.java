@@ -3,6 +3,10 @@ package com.gradingsystem.tesla.controller;
 import com.gradingsystem.tesla.model.Student;
 import com.gradingsystem.tesla.service.StudentService;
 import jakarta.servlet.http.HttpSession;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -37,8 +41,12 @@ public class SignupController {
     @PostMapping("/signup")
     public String handleSignup(@ModelAttribute("student") Student student, HttpSession session) {
 
-        if (student.getUsername() == null || student.getEmail() == null || student.getPassword() == null) {
+        if (student.getUsername() == null || student.getPassword() == null) {
             return "redirect:/signup?error=Invalid input";
+        }
+        //  Verify Email Format
+        if (!validateEmail(student.getEmail())){
+            return "redirect:/signup?error=Invalid email";
         }
         try {
             Student added = studentService.saveStudent(student);
@@ -56,5 +64,16 @@ public class SignupController {
             e.printStackTrace();
             return "redirect:/signup?error=Email already exists!";
         }
+    }
+
+    private boolean validateEmail(String email){
+        String EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$";
+        Pattern EMAIL_PATTERN = Pattern.compile(EMAIL_REGEX);
+        
+        if (email == null) {
+            return false;
+        }
+        Matcher matcher = EMAIL_PATTERN.matcher(email);
+        return matcher.matches();
     }
 }

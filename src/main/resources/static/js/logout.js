@@ -1,20 +1,20 @@
-// logout logic
+// Logout logic
 function logout() {
-    fetch('/logout', {
-        method: 'GET',
+    fetch("/logout", {
+        method: "GET",
         headers: {
-            'Content-Type': 'application/json'
+            "Content-Type": "application/json"
         }
     })
-            .then(response => {
-                if (response.ok) {
-                    // Redirect to the login page after successful logout
-                    window.location.href = '/';
-                } else {
-                    console.error('Logout failed');
-                }
-            })
-            .catch(error => {
-                console.error('Error during logout:', error);
-            });
+        .then((response) => {
+            if (response.ok) {
+                // Redirect to the login page after successful logout
+                window.location.href = "/";
+            } else {
+                console.error("Error: Logout request failed with status", response.status);
+            }
+        })
+        .catch((error) => {
+            console.error("Error during logout:", error);
+        });
 }

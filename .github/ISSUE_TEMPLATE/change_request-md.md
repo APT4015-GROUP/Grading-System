@@ -44,3 +44,4 @@ CRs are reviewed by the **Project Lead** and assigned to the responsible develop
 - If approved, the assigned developer **creates a feature branch** and starts implementation.  
 - After implementation, the CR is **tested, merged, and marked as completed** in GitHub Issues.  
 - If issues arise, they are logged in GitHub Issues for further adjustments.
+

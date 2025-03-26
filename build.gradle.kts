@@ -18,9 +18,6 @@ repositories {
 }
 
 dependencies {
-        //  Dotenv for environment variables
-        implementation("io.github.cdimascio:java-dotenv:5.2.2")
-        
         //  Parsing Jackson
         implementation ("com.fasterxml.jackson.core:jackson-databind:2.15.1")
 
@@ -50,10 +47,91 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
         implementation("org.springframework.boot:spring-boot-starter-tomcat")
 	runtimeOnly("com.mysql:mysql-connector-j")
+
+        //  Testing
+        testImplementation("org.testcontainers:testcontainers:1.20.6") 
+        testImplementation("org.testcontainers:junit-jupiter:1.20.6")
+        testImplementation("org.testcontainers:mysql:1.20.6")
+        testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.withType<Test> {
-	useJUnitPlatform()
+	useJUnitPlatform(){
+        includeTags("unit")  // Run only unit tests
+    }
+}
+
+// Define configurations for API and Integration test source sets
+configurations {
+    create("apiTestImplementation") {
+        extendsFrom(configurations["testImplementation"])
+    }
+    create("apiTestCompileClasspath") {
+        extendsFrom(configurations["apiTestImplementation"])
+        isCanBeResolved = true  // Allows resolving dependencies
+    }
+    create("apiTestRuntimeClasspath") {
+        extendsFrom(configurations["testRuntimeClasspath"])
+        isCanBeResolved = true  // Allows resolving dependencies
+    }
+
+    create("integrationTestImplementation") {
+        extendsFrom(configurations["testImplementation"])
+    }
+    create("integrationTestCompileClasspath") {
+        extendsFrom(configurations["integrationTestImplementation"])
+        isCanBeResolved = true  // Allows resolving dependencies
+    }
+    create("integrationTestRuntimeClasspath") {
+        extendsFrom(configurations["testRuntimeClasspath"])
+        isCanBeResolved = true  // Allows resolving dependencies
+    }
+}
+
+sourceSets {
+    test {
+        java.srcDirs("src/test/java/com/gradingsystem/tesla/service")
+    }
+
+    create("apiTest") {
+        java.srcDirs("src/test/java/com/gradingsystem/tesla/controller")
+        compileClasspath += sourceSets["main"].output + sourceSets["test"].output + configurations["apiTestCompileClasspath"]
+        runtimeClasspath += sourceSets["main"].output + sourceSets["test"].output + configurations["apiTestRuntimeClasspath"]
+    }
+
+    create("integrationTest") {
+        java.srcDirs("src/test/java/com/gradingsystem/tesla/integration")
+        compileClasspath += sourceSets["main"].output + sourceSets["test"].output + configurations["integrationTestCompileClasspath"]
+        runtimeClasspath += sourceSets["main"].output + sourceSets["test"].output + configurations["integrationTestRuntimeClasspath"]
+    }
+}
+
+// Integration Test Task (runs with `./gradlew integrationTest`)
+tasks.register<Test>("integrationTest") {
+    description = "Runs integration tests"
+    group = "verification"
+    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("integration")  // Run only integration tests
+    }
+    shouldRunAfter(tasks.test)
+}
+
+// API Test Task (runs with `./gradlew apiTest`)
+tasks.register<Test>("apiTest") {
+    description = "Runs API tests"
+    group = "verification"
+    testClassesDirs = sourceSets["apiTest"].output.classesDirs
+    classpath = sourceSets["apiTest"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("api")  // Run only API tests
+    }
+    shouldRunAfter(tasks.test, tasks.named("integrationTest"))
+}
+
+tasks.named("check") {
+    dependsOn("apiTest", "integrationTest")  // Ensure they run during `./gradlew build`
 }
